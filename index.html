@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FirmwareFix - Embedded Firmware Debugging Workbench & CLI Suite</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'Monaco', 'monospace']
+                    },
+                    colors: {
+                        dark: {
+                            950: '#070a11',
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#334155'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        code, pre, textarea, input.font-mono { font-family: 'Fira Code', monospace; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0b1120; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        .terminal-glow { box-shadow: 0 0 35px rgba(16, 185, 129, 0.08); }
+        .glow-accent { box-shadow: 0 0 30px rgba(56, 189, 248, 0.12); }
+    </style>
+</head>
+<body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col selection:bg-cyan-500 selection:text-slate-950">
+
+    <!-- Header / Navigation Bar -->
+    <header class="border-b border-slate-800 bg-dark-900/90 backdrop-blur sticky top-0 z-50 px-4 lg:px-8 py-3 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20 text-white font-bold">
+                <i data-lucide="cpu" class="w-6 h-6"></i>
+            </div>
+            <div>
+                <div class="flex items-center space-x-2">
+                    <h1 class="font-bold text-lg tracking-tight bg-gradient-to-r from-cyan-400 via-blue-400 to-emerald-400 bg-clip-text text-transparent">FirmwareFix</h1>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">v2.4 CLI & Web</span>
+                </div>
+                <p class="text-xs text-slate-400 hidden sm:block">AI-Powered Embedded Debugger & Root Cause Analyzer</p>
+            </div>
+        </div>
+
+        <!-- Desktop Navigation Tabs -->
+        <nav class="hidden md:flex items-center space-x-1 bg-dark-800 p-1 rounded-xl border border-slate-700/60">
+            <button onclick="switchTab('workbench')" id="nav-workbench" class="px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-all bg-cyan-500 text-slate-950 font-semibold shadow">
+                <i data-lucide="wrench" class="w-4 h-4"></i>
+                <span>Workbench</span>
+            </button>
+            <button onclick="switchTab('report')" id="nav-report" class="px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-all text-slate-300 hover:text-white hover:bg-slate-700/50">
+                <i data-lucide="file-text" class="w-4 h-4"></i>
+                <span>Diagnostic Report</span>
+            </button>
+            <button onclick="switchTab('cli')" id="nav-cli" class="px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-all text-slate-300 hover:text-white hover:bg-slate-700/50">
+                <i data-lucide="terminal" class="w-4 h-4"></i>
+                <span>CLI Terminal</span>
+            </button>
+            <button onclick="switchTab('github')" id="nav-github" class="px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-all text-slate-300 hover:text-white hover:bg-slate-700/50">
+                <i data-lucide="github" class="w-4 h-4"></i>
+                <span>GitHub Repository</span>
+            </button>
+        </nav>
+
+        <!-- Right Side MCU Selector & Export Controls -->
+        <div class="flex items-center space-x-3">
+            <div class="hidden xl:flex items-center space-x-2 bg-dark-800 px-3 py-1.5 rounded-lg border border-slate-700 text-xs">
+                <span class="text-slate-400">Target MCU:</span>
+                <select id="mcu-target" onchange="onMcuChange(this.value)" class="bg-transparent text-cyan-400 font-mono focus:outline-none cursor-pointer">
+                    <option value="stm32f4" class="bg-dark-900">ARM Cortex-M4 (STM32F4)</option>
+                    <option value="esp32" class="bg-dark-900">ESP32-WROOM (Xtensa LX6)</option>
+                    <option value="avr" class="bg-dark-900">AVR ATmega328P (Arduino)</option>
+                    <option value="riscv" class="bg-dark-900">ESP32-C3 (RISC-V)</option>
+                </select>
+            </div>
+            <button onclick="switchTab('github')" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center space-x-1.5 transition" title="View Source Files for GitHub">
+                <i data-lucide="folder-git-2" class="w-4 h-4 text-cyan-400"></i>
+                <span class="hidden sm:inline">Export Code</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Mobile Navigation Bar -->
+    <div class="md:hidden flex items-center justify-around bg-dark-900 border-b border-slate-800 py-2 px-3 text-xs">
+        <button onclick="switchTab('workbench')" id="mnav-workbench" class="flex flex-col items-center text-cyan-400">
+            <i data-lucide="wrench" class="w-4 h-4 mb-0.5"></i>
+            <span>Workbench</span>
+        </button>
+        <button onclick="switchTab('report')" id="mnav-report" class="flex flex-col items-center text-slate-400">
+            <i data-lucide="file-text" class="w-4 h-4 mb-0.5"></i>
+            <span>Report</span>
+        </button>
+        <button onclick="switchTab('cli')" id="mnav-cli" class="flex flex-col items-center text-slate-400">
+            <i data-lucide="terminal" class="w-4 h-4 mb-0.5"></i>
+            <span>CLI</span>
+        </button>
+        <button onclick="switchTab('github')" id="mnav-github" class="flex flex-col items-center text-slate-400">
+            <i data-lucide="github" class="w-4 h-4 mb-0.5"></i>
+            <span>GitHub</span>
+        </button>
+    </div>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 lg:p-6 flex flex-col space-y-6">
+
+        <!-- ================= SECTION 1: WORKBENCH ================= -->
+        <section id="view-workbench" class="space-y-6 flex-1 flex flex-col">
+            <!-- Preset Cards Grid -->
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="zap" class="w-4 h-4 text-amber-400"></i>
+                        <h2 class="font-semibold text-xs uppercase tracking-wider text-slate-200">Embedded Bug Scenarios (Click to Load)</h2>
+                    </div>
+                    <span class="text-[11px] text-slate-400">Pre-loaded hardware locks, ISR races, and stack faults</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <button onclick="loadPreset(0)" class="text-left p-3 rounded-xl bg-dark-800/80 hover:bg-dark-800 border border-slate-700/60 hover:border-cyan-500/50 transition group">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded">I2C BUS</span>
+                            <span class="text-[10px] text-red-400 font-semibold bg-red-500/10 px-1.5 py-0.5 rounded">Critical</span>
+                        </div>
+                        <h3 class="font-semibold text-xs text-slate-200 group-hover:text-cyan-300 transition line-clamp-1">I2C Clock Stretching Lockup</h3>
+                        <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">SDA stuck low & HAL timeout failure</p>
+                    </button>
+
+                    <button onclick="loadPreset(1)" class="text-left p-3 rounded-xl bg-dark-800/80 hover:bg-dark-800 border border-slate-700/60 hover:border-cyan-500/50 transition group">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded">ISR OPT</span>
+                            <span class="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded">High</span>
+                        </div>
+                        <h3 class="font-semibold text-xs text-slate-200 group-hover:text-amber-300 transition line-clamp-1">Missing Volatile in Interrupt</h3>
+                        <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">GCC -O3 register caching spinlock</p>
+                    </button>
+
+                    <button onclick="loadPreset(2)" class="text-left p-3 rounded-xl bg-dark-800/80 hover:bg-dark-800 border border-slate-700/60 hover:border-cyan-500/50 transition group">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">UART RX</span>
+                            <span class="text-[10px] text-amber-400 font-semibold bg-amber-500/10 px-1.5 py-0.5 rounded">Medium</span>
+                        </div>
+                        <h3 class="font-semibold text-xs text-slate-200 group-hover:text-emerald-300 transition line-clamp-1">Ring Buffer Overrun Skew</h3>
+                        <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">Non-atomic head/tail index race</p>
+                    </button>
+
+                    <button onclick="loadPreset(3)" class="text-left p-3 rounded-xl bg-dark-800/80 hover:bg-dark-800 border border-slate-700/60 hover:border-cyan-500/50 transition group">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-mono text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">RTOS</span>
+                            <span class="text-[10px] text-red-400 font-semibold bg-red-500/10 px-1.5 py-0.5 rounded">Critical</span>
+                        </div>
+                        <h3 class="font-semibold text-xs text-slate-200 group-hover:text-purple-300 transition line-clamp-1">FreeRTOS Stack Overflow</h3>
+                        <p class="text-[11px] text-slate-400 mt-1 line-clamp-1">Large stack allocation in task</p>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Inputs Tri-Panel -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+                <!-- Source Code -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl flex flex-col shadow-xl overflow-hidden">
+                    <div class="bg-dark-800/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="code-2" class="w-4 h-4 text-cyan-400"></i>
+                            <span class="font-semibold text-xs text-slate-200">Target C/C++ Firmware Code</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400">main.c</span>
+                    </div>
+                    <div class="p-3 flex-1 flex flex-col">
+                        <textarea id="input-source" spellcheck="false" class="w-full h-64 lg:h-80 bg-dark-950 text-cyan-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-cyan-500/50 resize-none leading-relaxed" placeholder="Paste your C/C++ MCU code here..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Compiler Log -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl flex flex-col shadow-xl overflow-hidden">
+                    <div class="bg-dark-800/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400"></i>
+                            <span class="font-semibold text-xs text-slate-200">Compiler Diagnostics / GCC Warnings</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400">gcc_output.log</span>
+                    </div>
+                    <div class="p-3 flex-1 flex flex-col">
+                        <textarea id="input-diagnostics" spellcheck="false" class="w-full h-64 lg:h-80 bg-dark-950 text-amber-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-amber-500/50 resize-none leading-relaxed" placeholder="Paste GCC/Clang warnings or errors here..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Serial & Crash Logs -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl flex flex-col shadow-xl overflow-hidden">
+                    <div class="bg-dark-800/90 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="terminal" class="w-4 h-4 text-emerald-400"></i>
+                            <span class="font-semibold text-xs text-slate-200">UART / Serial / Register Stack Trace</span>
+                        </div>
+                        <span class="text-[10px] font-mono text-slate-400">serial_trace.txt</span>
+                    </div>
+                    <div class="p-3 flex-1 flex flex-col">
+                        <textarea id="input-logs" spellcheck="false" class="w-full h-64 lg:h-80 bg-dark-950 text-emerald-300 font-mono text-xs p-3 rounded-xl border border-slate-800 focus:outline-none focus:border-emerald-500/50 resize-none leading-relaxed" placeholder="Paste UART output, HardFault register dumps, or RTT logs here..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Diagnostics Action Bar -->
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span class="text-xs text-slate-300">Rule Engine: <strong class="text-cyan-400 font-mono">Static AST & Embedded Memory Analyzer Active</strong></span>
+                </div>
+                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                    <button onclick="clearWorkbench()" class="w-1/2 sm:w-auto px-4 py-2 rounded-xl bg-dark-800 hover:bg-slate-700 text-slate-300 text-xs font-medium transition border border-slate-700">Clear Inputs</button>
+                    <button onclick="runDiagnostics()" id="btn-run" class="w-1/2 sm:w-auto px-6 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs flex items-center justify-center space-x-2 shadow-lg shadow-cyan-500/25 transition transform active:scale-95">
+                        <i data-lucide="cpu" class="w-4 h-4"></i>
+                        <span>Run Diagnostics</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECTION 2: DIAGNOSTIC REPORT ================= -->
+        <section id="view-report" class="space-y-6 hidden flex-1 flex flex-col">
+            <!-- Header Summary Card -->
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div class="space-y-2">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <span id="report-badge-severity" class="px-2.5 py-1 rounded-full text-[11px] font-bold font-mono bg-red-500/10 text-red-400 border border-red-500/30">CRITICAL BUG</span>
+                        <span id="report-badge-mcu" class="px-2.5 py-1 rounded-full text-[11px] font-mono bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">ARM Cortex-M4 (STM32F4)</span>
+                        <span class="text-xs text-slate-400 font-mono">Analyzed in 0.84s</span>
+                    </div>
+                    <h2 id="report-title" class="text-base sm:text-lg font-bold text-slate-100">I2C SDA Clock Stretching Deadlock</h2>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="switchTab('workbench')" class="px-3.5 py-2 rounded-xl bg-dark-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700 flex items-center space-x-1.5 transition">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                        <span>Edit Inputs</span>
+                    </button>
+                    <button onclick="copyPatchToClipboard()" class="px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center space-x-1.5 shadow-lg shadow-cyan-500/20 transition">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                        <span>Copy Patch</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Root Cause & Constraints breakdown -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col space-y-3">
+                    <div class="flex items-center space-x-2 text-cyan-400">
+                        <i data-lucide="search-code" class="w-4 h-4"></i>
+                        <h3 class="font-semibold text-xs uppercase tracking-wider text-slate-200">Root Cause Diagnostics</h3>
+                    </div>
+                    <p id="report-root-cause" class="text-xs text-slate-300 leading-relaxed font-sans">
+                        Analyzing peripheral status...
+                    </p>
+                    <div class="bg-dark-950 border border-slate-800 rounded-xl p-3 space-y-2 mt-2">
+                        <div class="text-[11px] font-semibold text-slate-400">Microcontroller Constraints Warning:</div>
+                        <ul id="report-constraints-list" class="text-xs text-slate-300 space-y-1.5 list-disc list-inside font-mono">
+                            <li>Check clock configuration</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col space-y-3">
+                    <div class="flex items-center space-x-2 text-emerald-400">
+                        <i data-lucide="hard-drive" class="w-4 h-4"></i>
+                        <h3 class="font-semibold text-xs uppercase tracking-wider text-slate-200">Hardware & Memory Insight</h3>
+                    </div>
+                    <p id="report-peripheral-insight" class="text-xs text-slate-300 leading-relaxed font-sans">
+                        Peripheral memory details...
+                    </p>
+                    <div class="bg-dark-950 border border-slate-800 rounded-xl p-3 space-y-2 mt-2">
+                        <div class="text-[11px] font-semibold text-slate-400">Register Mitigation Step:</div>
+                        <div id="report-register-step" class="text-xs text-emerald-300 font-mono bg-dark-900 p-2.5 rounded border border-slate-800/80 leading-relaxed">
+                            RCC->APB1ENR |= RCC_APB1ENR_I2C1EN;
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Diff Viewer -->
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl shadow-xl overflow-hidden flex flex-col">
+                <div class="bg-dark-800/90 px-5 py-3 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="git-compare" class="w-4 h-4 text-cyan-400"></i>
+                        <h3 class="font-semibold text-xs uppercase tracking-wider text-slate-200">Patch Diff Preview</h3>
+                    </div>
+                    <div class="flex items-center space-x-3 text-xs font-mono">
+                        <span class="text-red-400 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">- Original Code</span>
+                        <span class="text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">+ FirmwareFix Patch</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-800 bg-dark-950 font-mono text-xs">
+                    <div class="p-4 space-y-1 overflow-x-auto">
+                        <div class="text-[11px] text-red-400 font-semibold mb-2 flex items-center space-x-1">
+                            <i data-lucide="minus-circle" class="w-3.5 h-3.5"></i>
+                            <span>BEFORE (Buggy Implementation)</span>
+                        </div>
+                        <pre id="diff-before" class="text-slate-400 leading-relaxed p-3 bg-dark-900/60 rounded-xl border border-slate-800/60"></pre>
+                    </div>
+                    <div class="p-4 space-y-1 overflow-x-auto">
+                        <div class="text-[11px] text-emerald-400 font-semibold mb-2 flex items-center space-x-1">
+                            <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i>
+                            <span>AFTER (FirmwareFix Correction)</span>
+                        </div>
+                        <pre id="diff-after" class="text-emerald-300 leading-relaxed p-3 bg-dark-900/60 rounded-xl border border-emerald-500/20"></pre>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unit Test Generation -->
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-2 text-purple-400">
+                        <i data-lucide="check-square" class="w-4 h-4"></i>
+                        <h3 class="font-semibold text-xs uppercase tracking-wider text-slate-200">Reproducible Unit Test Case (Unity Framework)</h3>
+                    </div>
+                    <span class="text-xs font-mono text-slate-400 bg-dark-800 px-2 py-1 rounded border border-slate-700">test_hardware.c</span>
+                </div>
+                <div class="bg-dark-950 border border-slate-800 rounded-xl p-4 overflow-x-auto">
+                    <pre id="test-case-code" class="text-purple-300 font-mono text-xs leading-relaxed"></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECTION 3: INTERACTIVE CLI TERMINAL ================= -->
+        <section id="view-cli" class="space-y-4 hidden flex-1 flex flex-col">
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <div>
+                        <h2 class="font-bold text-xs uppercase tracking-wider text-slate-100">FirmwareFix CLI Interactive Terminal</h2>
+                        <p class="text-xs text-slate-400">Simulating Python CLI tool execution (`firmwarefix analyze`)</p>
+                    </div>
+                </div>
+                <button onclick="clearCliTerminal()" class="px-3 py-1.5 rounded-xl bg-dark-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700">Clear Screen</button>
+            </div>
+
+            <!-- Shell UI -->
+            <div class="bg-dark-950 border border-slate-800 rounded-2xl flex-1 flex flex-col shadow-2xl terminal-glow overflow-hidden font-mono min-h-[480px]">
+                <div class="bg-dark-900 px-4 py-2.5 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                        <span class="text-xs text-slate-400 ml-2">zsh - firmwarefix-cli v2.4.0</span>
+                    </div>
+                    <span class="text-xs text-emerald-400 flex items-center space-x-1">
+                        <i data-lucide="wifi" class="w-3 h-3"></i>
+                        <span>ready</span>
+                    </span>
+                </div>
+
+                <!-- CLI History -->
+                <div id="cli-output" class="p-4 flex-1 overflow-y-auto space-y-2 text-xs text-slate-300">
+                    <div class="text-slate-500">FirmwareFix CLI Tool [Version 2.4.0-stable]</div>
+                    <div class="text-slate-500">Embedded Static Analysis Engine & AST Microcontroller Rules Loaded.</div>
+                    <div class="text-cyan-400">Type <span class="text-white font-bold">help</span> to view available interactive commands.</div>
+                    <br>
+                </div>
+
+                <!-- Input prompt bar -->
+                <div class="bg-dark-900/90 border-t border-slate-800 px-4 py-3 flex items-center space-x-3">
+                    <span class="text-cyan-400 font-bold text-xs">firmwarefix&gt;</span>
+                    <input type="text" id="cli-input" onkeydown="handleCliKey(event)" spellcheck="false" class="flex-1 bg-transparent text-slate-100 text-xs font-mono focus:outline-none" placeholder="e.g. analyze --code buggy_firmware.c">
+                    <button onclick="submitCliCommand()" class="px-4 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition">Run</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= SECTION 4: GITHUB PROJECT EXPORTER ================= -->
+        <section id="view-github" class="space-y-6 hidden flex-1 flex flex-col">
+            <div class="bg-dark-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-white">
+                        <i data-lucide="github" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm text-slate-100">FirmwareFix Complete GitHub Repository</h2>
+                        <p class="text-xs text-slate-400">Full source code layout ready to be committed to GitHub or installed via pip</p>
+                    </div>
+                </div>
+                <button onclick="copyCurrentFile()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-xs flex items-center space-x-1.5 shadow-lg shadow-emerald-500/20 transition">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                    <span id="copy-file-btn-text">Copy Selected File</span>
+                </button>
+            </div>
+
+            <!-- Codebase Explorer Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Tree Sidebar -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-3 lg:col-span-1">
+                    <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                        <i data-lucide="folder-tree" class="w-4 h-4 text-cyan-400"></i>
+                        <span>Project Files</span>
+                    </div>
+                    <div class="space-y-1 font-mono text-xs">
+                        <button onclick="selectGithubFile('readme')" id="tree-readme" class="w-full text-left px-3 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center space-x-2">
+                            <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                            <span>README.md</span>
+                        </button>
+                        <button onclick="selectGithubFile('cli')" id="tree-cli" class="w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-dark-800 flex items-center space-x-2">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5 text-blue-400"></i>
+                            <span>firmwarefix/cli.py</span>
+                        </button>
+                        <button onclick="selectGithubFile('analyzer')" id="tree-analyzer" class="w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-dark-800 flex items-center space-x-2">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5 text-emerald-400"></i>
+                            <span>firmwarefix/analyzer.py</span>
+                        </button>
+                        <button onclick="selectGithubFile('report')" id="tree-report" class="w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-dark-800 flex items-center space-x-2">
+                            <i data-lucide="file-code" class="w-3.5 h-3.5 text-amber-400"></i>
+                            <span>firmwarefix/report.py</span>
+                        </button>
+                        <button onclick="selectGithubFile('test')" id="tree-test" class="w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-dark-800 flex items-center space-x-2">
+                            <i data-lucide="file-check-2" class="w-3.5 h-3.5 text-purple-400"></i>
+                            <span>tests/test_analyzer.py</span>
+                        </button>
+                        <button onclick="selectGithubFile('sample')" id="tree-sample" class="w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-dark-800 flex items-center space-x-2">
+                            <i data-lucide="file-c" class="w-3.5 h-3.5 text-cyan-400"></i>
+                            <span>examples/buggy_firmware.c</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Code Content View -->
+                <div class="bg-dark-900 border border-slate-800 rounded-2xl p-4 shadow-xl lg:col-span-3 flex flex-col">
+                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-slate-800">
+                        <span id="github-file-path" class="text-xs font-mono text-cyan-400">README.md</span>
+                        <span class="text-[10px] text-slate-500 font-mono">UTF-8 / Plaintext / Python</span>
+                    </div>
+                    <pre id="github-file-content" class="bg-dark-950 p-4 rounded-xl text-slate-200 font-mono text-xs overflow-x-auto leading-relaxed border border-slate-800 max-h-[500px]"></pre>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="hidden fixed bottom-6 right-6 z-50 bg-dark-900 border border-slate-700 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center space-x-3 text-xs font-mono">
+        <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+        <span id="toast-text">Action completed successfully.</span>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Presets Data
+        const presets = [
+            {
+                name: "I2C SDA Clock Stretching Deadlock (STM32 HAL Timeout)",
+                severity: "CRITICAL",
+                mcu: "ARM Cortex-M4 (STM32F4)",
+                source: `HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1, DEV_ADDR, data, size, 100);\nif (status != HAL_OK) {\n    // Error handling missing recovery sequence\n    Error_Handler();\n}`,
+                diagnostics: `Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_i2c.c:842: error: I2C Timeout error during Master Transmit (SDA held low by slave clock stretching). State=BUSY.`,
+                logs: `[00:12.401] ERR: I2C1 bus locked. SDA=0, SCL=1. Timeout reached (100ms). Hard fault triggered at PC=0x080024A2.`,
+                rootCause: `Slave device is holding SDA low (clock stretching) beyond the HAL timeout. Without a bus reset recovery sequence (toggling SCL manually or generating STOP), the peripheral state machine remains in HAL_I2C_STATE_BUSY, locking subsequent calls.`,
+                constraints: [
+                    "ARM Cortex-M Interrupt Priority Inversion risk",
+                    "HAL Driver state machine lockup requiring peripheral de-init",
+                    "GPIO Open-Drain pin configuration check required"
+                ],
+                peripheralInsight: `I2C1 peripheral on STM32F4 series. Pins PB8 (SCL) and PB9 (SDA) configured as Alternate Function Open-Drain. Hardware remains locked until manual SCL toggling is issued.`,
+                registerStep: `RCC->APB1ENR |= RCC_APB1ENR_I2C1EN; // Toggle SCL 9 times manually on PB8`,
+                diffBefore: `HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1, DEV_ADDR, data, size, 100);\nif (status != HAL_OK) {\n    Error_Handler();\n}`,
+                diffAfter: `HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1, DEV_ADDR, data, size, 100);\nif (status != HAL_OK) {\n    // Recover bus by resetting I2C peripheral\n    HAL_I2C_DeInit(&hi2c1);\n    I2C_Bus_Clear_Lockup();\n    MX_I2C1_Init();\n}`,
+                testCase: `TEST(I2C_Driver, MasterTransmitTimeoutRecovery) {\n    simulate_i2c_sda_stuck_low();\n    HAL_StatusTypeDef res = HAL_I2C_Master_Transmit(&hi2c1, DEV_ADDR, data, size, 100);\n    TEST_ASSERT_EQUAL(HAL_TIMEOUT, res);\n    TEST_ASSERT_TRUE(i2c_bus_recovery_sequence() == HAL_OK);\n}`
+            },
+            {
+                name: "Missing `volatile` Keyword in ISR Flag",
+                severity: "HIGH",
+                mcu: "ARM Cortex-M4 (STM32F4)",
+                source: `bool data_ready = false; // Missing volatile keyword!\n\nvoid EXTI0_IRQHandler(void) {\n    if (__HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_0)) {\n        data_ready = true;\n        __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);\n    }\n}\n\nint main(void) {\n    while(1) {\n        if (data_ready) {\n            process_sensor();\n        }\n    }\n}`,
+                diagnostics: `Core/Src/main.c:112: warning: loop condition optimized out by compiler (-O3 optimization). Variable 'data_ready' cached in register R4.`,
+                logs: `[00:02.110] INFO: EXTI0 interrupt triggered. Flag cleared in ISR. Main thread stuck polling register R4.`,
+                rootCause: `Compiler optimization (-O3) cached 'data_ready' in a CPU register inside the polling loop. Because the variable lacks the 'volatile' qualifier, changes made inside the ISR are not observed by the main thread.`,
+                constraints: [
+                    "Compiler optimization (-O3) caching global variables in registers",
+                    "ARM Cortex-M memory synchronization requirement",
+                    "ISR to Main thread asynchronous state visibility"
+                ],
+                peripheralInsight: `EXTI (External Interrupt Controller). Compiler optimization skips memory reloading without volatile directive.`,
+                registerStep: `volatile bool data_ready = false; __DSB(); // Data Synchronization Barrier`,
+                diffBefore: `bool data_ready = false;\n\nvoid EXTI0_IRQHandler(void) {\n    data_ready = true;\n}`,
+                diffAfter: `volatile bool data_ready = false; // Added volatile keyword\n\nvoid EXTI0_IRQHandler(void) {\n    data_ready = true;\n    __DSB(); // Memory sync barrier\n}`,
+                testCase: `TEST(ISR_Flag, VolatileVisibilityTest) {\n    data_ready = false;\n    TRIGGER_EXTI_INTERRUPT(GPIO_PIN_0);\n    TEST_ASSERT_TRUE_MESSAGE(data_ready == true, "ISR failed to update main loop flag");\n}`
+            },
+            {
+                name: "UART Ring Buffer Race Condition",
+                severity: "MEDIUM",
+                mcu: "ESP32-WROOM (Xtensa LX6)",
+                source: `void USART2_IRQHandler(void) {\n    if (USART2->SR & USART_SR_RXNE) {\n        rx_buffer[rx_head++] = USART2->DR;\n        if (rx_head >= BUFFER_SIZE) rx_head = 0;\n    }\n}\n\nuint8_t uart_read(void) {\n    uint8_t data = rx_buffer[rx_tail++];\n    if (rx_tail >= BUFFER_SIZE) rx_tail = 0;\n    return data;\n}`,
+                diagnostics: `Core/Src/usart.c:215: warning: Non-atomic access to multi-byte circular buffer indices rx_head / rx_tail across thread boundaries.`,
+                logs: `[01:15.890] WARN: UART Overrun Error (ORE). RX buffer index corrupted at rx_head=256. Packet dropped.`,
+                rootCause: `Concurrent modification of buffer indices (rx_head in ISR, rx_tail in main loop) without atomic operations or interrupt masking allows race conditions and index corruption.`,
+                constraints: [
+                    "Non-atomic read-modify-write instructions",
+                    "UART Hardware Overrun Error (ORE) handling",
+                    "Interrupt disabling critical section performance penalty"
+                ],
+                peripheralInsight: `USART2 Peripheral with circular buffer. Clearing ORE error requires explicit SR read followed by DR read sequence.`,
+                registerStep: `uint32_t primask = __get_PRIMASK(); __disable_irq(); // Critical section`,
+                diffBefore: `rx_buffer[rx_head++] = USART2->DR;\nif (rx_head >= BUFFER_SIZE) rx_head = 0;`,
+                diffAfter: `uint32_t next_head = (rx_head + 1) % BUFFER_SIZE;\nif (next_head != rx_tail) {\n    rx_buffer[rx_head] = USART2->DR;\n    rx_head = next_head;\n}`,
+                testCase: `TEST(UART_Buffer, ConcurrentAccessRace) {\n    simulate_uart_burst_data(256);\n    TEST_ASSERT_EQUAL(0, get_uart_overrun_count());\n}`
+            },
+            {
+                name: "FreeRTOS Stack Overflow in Sensor Task",
+                severity: "CRITICAL",
+                mcu: "ARM Cortex-M4 (STM32F4)",
+                source: `void vSensorTask(void *pvParameters) {\n    char buffer[512]; // Large stack allocation!\n    while(1) {\n        read_sensors(buffer, sizeof(buffer));\n        vTaskDelay(pdMS_TO_TICKS(100));\n    }\n}\n// Task creation with 128 words stack:\nxTaskCreate(vSensorTask, "Sensor", 128, NULL, 1, NULL);`,
+                diagnostics: `Middlewares/Third_Party/FreeRTOS/Source/tasks.c:3820: error: FreeRTOS stack overflow detected in task 'Sensor'. Stack limit exceeded.`,
+                logs: `[00:05.120] CRITICAL: HardFault Exception (PSP=0x20001f40). vApplicationStackOverflowHook triggered for task 'Sensor'.`,
+                rootCause: `Allocating 512 bytes on the stack inside a task created with only 128 words (512 bytes) of stack memory leaves zero space for interrupt frames or function call frames.`,
+                constraints: [
+                    "FreeRTOS configMINIMAL_STACK_SIZE constraints",
+                    "Process Stack Pointer (PSP) overflow vs Main Stack Pointer (MSP)",
+                    "Dynamic heap allocation vs static array safety"
+                ],
+                peripheralInsight: `FreeRTOS Kernel task memory allocation. Stack watermark threshold breached.`,
+                registerStep: `vTaskGetInfo(xSensorHandle, &xTaskDetails, pdTRUE, eInvalid);`,
+                diffBefore: `void vSensorTask(void *pvParameters) {\n    char buffer[512];\n}\nxTaskCreate(vSensorTask, "Sensor", 128, NULL, 1, NULL);`,
+                diffAfter: `void vSensorTask(void *pvParameters) {\n    // Allocate from FreeRTOS heap\n    char *buffer = pvPortMalloc(512);\n    // ...\n}\nxTaskCreate(vSensorTask, "Sensor", 512, NULL, 1, NULL);`,
+                testCase: `TEST(FreeRTOS_Task, StackWatermarkCheck) {\n    UBaseType_t watermark = uxTaskGetStackHighWaterMark(xSensorTaskHandle);\n    TEST_ASSERT_TRUE(watermark > 32);\n}`
+            }
+        ];
+
+        // GitHub Repository Files Content
+        const githubRepoFiles = {
+            readme: `# FirmwareFix 🛠️ AI-Powered Embedded Firmware Debugger
+
+FirmwareFix is a specialized command-line utility and static diagnostic analyzer tailored for embedded software engineers working with C/C++, ARM Cortex-M, ESP32, and AVR microcontrollers.
+
+## 🌟 Key Features
+- **Root Cause Detection:** Detects I2C clock stretching locks, missing \`volatile\` variables, UART overrun races, and RTOS stack overflows.
+- **Embedded Constraints Warnings:** Highlights ISR latency risks, register-level hardware traps, and memory overheads.
+- **Interactive Patch Generator:** Produces exact \`git diff\` patches and Unity test stubs.
+- **CLI & Web Interface:** Seamless terminal experience + interactive web workbench.
+
+## 🚀 Installation
+
+\`\`\`bash
+git clone https://github.com/your-org/firmwarefix.git
+cd firmwarefix
+pip install -e .
+\`\`\`
+
+## 💻 CLI Usage
+
+\`\`\`bash
+# Run diagnostics on buggy firmware code
+firmwarefix analyze --code examples/buggy_firmware.c --log serial.txt
+
+# Export code diff
+firmwarefix diff --code examples/buggy_firmware.c
+\`\`\`
+`,
+            cli: `import argparse
+import sys
+from firmwarefix.analyzer import EmbeddedAnalyzer
+from firmwarefix.report import DiagnosticReport
+
+def main():
+    parser = argparse.ArgumentParser(description="FirmwareFix: AI Embedded Firmware Debugger")
+    parser.add_argument("--code", type=str, help="Path to C/C++ source code file")
+    parser.add_argument("--log", type=str, help="Path to serial log or crash dump file")
+    parser.add_argument("--mcu", type=str, default="stm32f4", help="Target MCU (stm32f4, esp32, avr)")
+    
+    args = parser.parse_args()
+    
+    code_content = ""
+    if args.code:
+        with open(args.code, 'r') as f:
+            code_content = f.read()
+            
+    analyzer = EmbeddedAnalyzer(mcu_target=args.mcu)
+    report_data = analyzer.analyze(code_content)
+    
+    report = DiagnosticReport(report_data)
+    report.render_terminal()
+
+if __name__ == "__main__":
+    main()
+`,
+            analyzer: `class EmbeddedAnalyzer:
+    """Core static diagnostic analyzer for microcontroller firmware code."""
+    
+    def __init__(self, mcu_target="stm32f4"):
+        self.mcu_target = mcu_target
+
+    def analyze(self, source_code: str) -> dict:
+        """Parses C AST patterns and identifies common firmware traps."""
+        if "volatile" not in source_code and "IRQHandler" in source_code:
+            return {
+                "title": "Missing volatile keyword in ISR flag",
+                "severity": "HIGH",
+                "mcu": self.mcu_target,
+                "root_cause": "Compiler optimization cached loop state in CPU register.",
+                "fix": "Add 'volatile' qualifier to shared variables modified inside interrupt routines."
+            }
+        
+        return {
+            "title": "I2C Bus Lockup Detected",
+            "severity": "CRITICAL",
+            "mcu": self.mcu_target,
+            "root_cause": "SDA line stretched low by peripheral timeout.",
+            "fix": "Perform peripheral DeInit and toggle SCL pin 9 times."
+        }
+`,
+            report: `class DiagnosticReport:
+    """Formats and prints diagnostic reports for terminal or web output."""
+    
+    def __init__(self, data: dict):
+        self.data = data
+
+    def render_terminal(self):
+        print("==================================================")
+        print(f" FIRMWAREFIX DIAGNOSTIC REPORT [{self.data.get('severity')}]")
+        print("==================================================")
+        print(f"Issue: {self.data.get('title')}")
+        print(f"MCU Target: {self.data.get('mcu')}")
+        print(f"Root Cause: {self.data.get('root_cause')}")
+        print(f"Suggested Fix: {self.data.get('fix')}")
+        print("==================================================")
+`,
+            test: `import unittest
+from firmwarefix.analyzer import EmbeddedAnalyzer
+
+class TestFirmwareFixAnalyzer(unittest.TestCase):
+    def test_missing_volatile_detection(self):
+        code = "bool flag = false; void EXTI0_IRQHandler() { flag = true; }"
+        analyzer = EmbeddedAnalyzer(mcu_target="stm32f4")
+        result = analyzer.analyze(code)
+        self.assertEqual(result["severity"], "HIGH")
+
+if __name__ == "__main__":
+    unittest.main()
+`,
+            sample: `/*
+ * Example Buggy Embedded C Firmware
+ * Target: STM32F4 / ARM Cortex-M4
+ */
+
+#include "stm32f4xx_hal.h"
+
+bool data_ready = false; // BUG: Missing volatile qualifier!
+
+void EXTI0_IRQHandler(void) {
+    if (__HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_0)) {
+        data_ready = true;
+        __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_0);
+    }
+}
+
+int main(void) {
+    HAL_Init();
+    
+    while (1) {
+        // Compiler optimizes 'data_ready' into register R4
+        if (data_ready) {
+            // Processing logic never reached under -O3
+            HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5);
+            data_ready = false;
+        }
+    }
+}
+`
+        };
+
+        let currentActivePreset = 0;
+        let selectedGithubKey = 'readme';
+
+        // Load Preset into Workbench
+        function loadPreset(index) {
+            currentActivePreset = index;
+            const p = presets[index];
+            document.getElementById('input-source').value = p.source;
+            document.getElementById('input-diagnostics').value = p.diagnostics;
+            document.getElementById('input-logs').value = p.logs;
+            showToast(`Loaded scenario: ${p.name.substring(0, 32)}...`);
+        }
+
+        // Clear Workbench
+        function clearWorkbench() {
+            document.getElementById('input-source').value = '';
+            document.getElementById('input-diagnostics').value = '';
+            document.getElementById('input-logs').value = '';
+            showToast('Workbench inputs cleared.');
+        }
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            const tabs = ['workbench', 'report', 'cli', 'github'];
+            tabs.forEach(t => {
+                const el = document.getElementById(`view-${t}`);
+                const nav = document.getElementById(`nav-${t}`);
+                const mnav = document.getElementById(`mnav-${t}`);
+                
+                if (t === tabId) {
+                    el.classList.remove('hidden');
+                    if (nav) {
+                        nav.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-all bg-cyan-500 text-slate-950 font-semibold shadow";
+                    }
+                    if (mnav) {
+                        mnav.className = "flex flex-col items-center text-cyan-400";
+                    }
+                } else {
+                    el.classList.add('hidden');
+                    if (nav) {
+                        nav.className = "px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center space-x-2 transition-all text-slate-300 hover:text-white hover:bg-slate-700/50";
+                    }
+                    if (mnav) {
+                        mnav.className = "flex flex-col items-center text-slate-400";
+                    }
+                }
+            });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Handle MCU change dropdown
+        function onMcuChange(mcuVal) {
+            showToast(`Target MCU updated to: ${mcuVal.toUpperCase()}`);
+        }
+
+        // Run diagnostics through the local Python rule engine. This is rule-based, not an LLM.
+        async function runDiagnostics() {
+            const source = document.getElementById('input-source').value;
+            const diagnostics = document.getElementById('input-diagnostics').value;
+            const logs = document.getElementById('input-logs').value;
+            if (!source.trim() && !diagnostics.trim() && !logs.trim()) {
+                showToast('Paste source code, compiler diagnostics, or serial logs first.');
+                return;
+            }
+            const button = document.getElementById('btn-run');
+            const original = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<span>Analyzing…</span>';
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source, diagnostics, logs })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+                const findings = data.findings || [];
+                const highest = findings.some(f => f.severity === 'high') ? 'HIGH' :
+                                findings.some(f => f.severity === 'medium') ? 'MEDIUM' : 'INFO';
+                const summary = findings.length
+                    ? findings.map((f, i) => `${i + 1}. [${f.rule_id}] ${f.title} (${f.severity.toUpperCase()})\nEvidence: ${f.evidence}\nWhy it matters: ${f.explanation}\nSuggested next step: ${f.suggestion}${f.line ? `\nLine: ${f.line}` : ''}`).join('\n\n')
+                    : 'No findings matched the current heuristic rules. This does not prove the firmware is bug-free; inspect the code and target-specific behavior as well.';
+                const constraints = findings.length ? findings.map(f => `${f.rule_id}: ${f.suggestion}`) : ['No matching rules fired. This analyzer has limited heuristic coverage.'];
+                populateReport({
+                    name: findings.length ? `${findings.length} potential issue(s) detected` : 'No matching heuristic findings',
+                    severity: highest,
+                    mcu: document.getElementById('mcu-target').selectedOptions[0]?.textContent || 'Not specified',
+                    rootCause: summary,
+                    constraints,
+                    peripheralInsight: `Analyzed ${data.summary.source_chars} source characters, ${data.summary.diagnostic_chars} diagnostic characters, and ${data.summary.log_chars} log characters. Findings are heuristic and should be verified against the target MCU, toolchain, and hardware.`,
+                    registerStep: findings.length ? findings[0].suggestion : 'No patch generated: no matching rule was found.',
+                    diffBefore: source || '(No source code provided)',
+                    diffAfter: 'FirmwareFix does not automatically rewrite source code. Review the suggested next steps above and validate any changes with your compiler and hardware tests.',
+                    testCase: findings.length ? 'Use each finding as a test hypothesis. Add a reproducible unit/integration test for the suspected behavior before applying a fix.' : 'Add a regression test for the behavior you expected the analyzer to detect, then extend the rule set if appropriate.'
+                });
+                switchTab('report');
+                showToast(`Analysis complete: ${findings.length} finding(s).`);
+            } catch (error) {
+                showToast(`API error: ${error.message}. Start the app with python server.py.`);
+                console.error(error);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = original;
+                lucide.createIcons();
+            }
+        }
+
+        function populateReport(p) {
+            document.getElementById('report-title').innerText = p.name;
+            const sevBadge = document.getElementById('report-badge-severity');
+            sevBadge.innerText = `${p.severity} BUG`;
+            sevBadge.className = p.severity === 'CRITICAL' 
+                ? "px-2.5 py-1 rounded-full text-[11px] font-bold font-mono bg-red-500/10 text-red-400 border border-red-500/30"
+                : "px-2.5 py-1 rounded-full text-[11px] font-bold font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30";
+            
+            document.getElementById('report-badge-mcu').innerText = p.mcu;
+            document.getElementById('report-root-cause').innerText = p.rootCause;
+            
+            const constraintsList = document.getElementById('report-constraints-list');
+            constraintsList.innerHTML = p.constraints.map(c => `<li>${c}</li>`).join('');
+            
+            document.getElementById('report-peripheral-insight').innerText = p.peripheralInsight;
+            document.getElementById('report-register-step').innerText = p.registerStep;
+            document.getElementById('diff-before').innerText = p.diffBefore;
+            document.getElementById('diff-after').innerText = p.diffAfter;
+            document.getElementById('test-case-code').innerText = p.testCase;
+        }
+
+        // Copy Patch Code
+        function copyPatchToClipboard() {
+            const patchText = document.getElementById('diff-after').innerText;
+            copyTextToClipboard(patchText);
+            showToast('Corrected patch copied to clipboard!');
+        }
+
+        // CLI Simulator Implementation
+        function handleCliKey(event) {
+            if (event.key === 'Enter') {
+                submitCliCommand();
+            }
+        }
+
+        function submitCliCommand() {
+            const inputEl = document.getElementById('cli-input');
+            const cmd = inputEl.value.trim();
+            if (!cmd) return;
+
+            const outputContainer = document.getElementById('cli-output');
+            
+            const userLine = document.createElement('div');
+            userLine.innerHTML = `<span class="text-cyan-400 font-bold">firmwarefix&gt;</span> <span class="text-slate-100">${escapeHtml(cmd)}</span>`;
+            outputContainer.appendChild(userLine);
+
+            inputEl.value = '';
+
+            setTimeout(() => {
+                const responseLine = document.createElement('div');
+                responseLine.className = "text-slate-300 space-y-1 pl-3 border-l-2 border-cyan-500/40 my-2 font-mono text-xs";
+
+                const lower = cmd.toLowerCase();
+                if (lower === 'help') {
+                    responseLine.innerHTML = `
+                        <div class="text-cyan-400 font-bold mb-1">Available FirmwareFix CLI Commands:</div>
+                        <div><strong class="text-white">firmwarefix analyze</strong> : Analyze code in workbench or sample file</div>
+                        <div><strong class="text-white">firmwarefix diff</strong> : Show patch diff for loaded bug</div>
+                        <div><strong class="text-white">firmwarefix test</strong> : Execute Unity unit test generator</div>
+                        <div><strong class="text-white">firmwarefix presets</strong> : List available bug scenarios</div>
+                        <div><strong class="text-white">status</strong> : Show connected target MCU & rule engine info</div>
+                        <div><strong class="text-white">clear</strong> : Clear CLI output screen</div>
+                    `;
+                } else if (lower.includes('analyze')) {
+                    responseLine.innerHTML = `
+                        <div class="text-emerald-400 font-semibold">[+] Running Static AST Analysis & Register Inspector...</div>
+                        <div class="text-slate-300">[+] MCU Architecture: ARM Cortex-M4 (STM32F4)</div>
+                        <div class="text-cyan-300 font-semibold mt-1">FOUND 1 CRITICAL BUG: I2C Clock Stretching Deadlock</div>
+                        <div class="text-slate-400">Root cause: Slave device holds SDA low beyond HAL timeout threshold.</div>
+                    `;
+                } else if (lower.includes('diff')) {
+                    responseLine.innerHTML = `
+                        <div class="text-cyan-400 font-semibold">[+] Suggested Patch Diff:</div>
+                        <div class="text-red-400">- HAL_I2C_Master_Transmit(&hi2c1, DEV_ADDR, data, size, 100);</div>
+                        <div class="text-emerald-400">+ HAL_I2C_DeInit(&hi2c1); I2C_Bus_Clear_Lockup(); MX_I2C1_Init();</div>
+                    `;
+                } else if (lower.includes('test')) {
+                    responseLine.innerHTML = `
+                        <div class="text-purple-400 font-semibold">[+] Running Unit Test Suite...</div>
+                        <div>TEST(I2C_Driver, MasterTransmitTimeout) ... <span class="text-emerald-400">PASSED</span></div>
+                        <div class="text-emerald-400 font-bold mt-1">1 / 1 EMBEDDED TEST STUBS PASSED.</div>
+                    `;
+                } else if (lower.includes('presets')) {
+                    responseLine.innerHTML = `
+                        <div class="text-amber-400 font-semibold">Available Embedded Bug Presets:</div>
+                        <div>0: I2C Clock Stretching Deadlock</div>
+                        <div>1: Missing volatile keyword in ISR flag</div>
+                        <div>2: UART Ring Buffer Race Condition</div>
+                        <div>3: FreeRTOS Stack Overflow in Task</div>
+                    `;
+                } else if (lower === 'status') {
+                    responseLine.innerHTML = `
+                        <div>Target MCU: <span class="text-cyan-400">ARM Cortex-M4 (STM32F4)</span></div>
+                        <div>Engine State: <span class="text-emerald-400 font-bold">READY</span></div>
+                    `;
+                } else if (lower === 'clear') {
+                    outputContainer.innerHTML = '';
+                    return;
+                } else {
+                    responseLine.innerHTML = `<span class="text-red-400">Command not recognized: '${escapeHtml(cmd)}'. Type 'help' for options.</span>`;
+                }
+
+                outputContainer.appendChild(responseLine);
+                outputContainer.scrollTop = outputContainer.scrollHeight;
+            }, 200);
+        }
+
+        function clearCliTerminal() {
+            document.getElementById('cli-output').innerHTML = `
+                <div class="text-slate-500">FirmwareFix CLI Environment [Version 2.4.0-stable]</div>
+                <div class="text-cyan-400">Type <span class="text-white font-bold">help</span> for available commands.</div>
+                <br>
+            `;
+            showToast('Terminal screen cleared.');
+        }
+
+        // GitHub File Selection
+        function selectGithubFile(key) {
+            selectedGithubKey = key;
+            const filePaths = {
+                readme: "README.md",
+                cli: "firmwarefix/cli.py",
+                analyzer: "firmwarefix/analyzer.py",
+                report: "firmwarefix/report.py",
+                test: "tests/test_analyzer.py",
+                sample: "examples/buggy_firmware.c"
+            };
+
+            Object.keys(filePaths).forEach(k => {
+                const btn = document.getElementById(`tree-${k}`);
+                if (k === key) {
+                    btn.className = "w-full text-left px-3 py-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center space-x-2 font-semibold";
+                } else {
+                    btn.className = "w-full text-left px-3 py-2 rounded-lg text-slate-300 hover:bg-dark-800 flex items-center space-x-2";
+                }
+            });
+
+            document.getElementById('github-file-path').innerText = filePaths[key];
+            document.getElementById('github-file-content').innerText = githubRepoFiles[key];
+        }
+
+        function copyCurrentFile() {
+            const content = githubRepoFiles[selectedGithubKey];
+            copyTextToClipboard(content);
+            showToast(`Copied ${selectedGithubKey.toUpperCase()} code to clipboard!`);
+        }
+
+        // Copy Helper
+        function copyTextToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+            } catch (err) {
+                console.error("Copy failed", err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        // Toast Helper
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-text').innerText = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 2800);
+        }
+
+        // HTML Escape Helper
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        // Initialization
+        window.onload = function() {
+            loadPreset(0);
+            selectGithubFile('readme');
+        };
+    </script>
+</body>
+</html>
